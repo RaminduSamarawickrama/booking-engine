@@ -1,10 +1,11 @@
 # Free CI: GitHub-hosted runners only, no paid services, no deploy secrets.
 name: CI
 
+# Every push runs CI, so feature branches are checked before a pull request is opened;
+# pull requests from branches in this repo show those same checks.
 on:
-  pull_request:
   push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
