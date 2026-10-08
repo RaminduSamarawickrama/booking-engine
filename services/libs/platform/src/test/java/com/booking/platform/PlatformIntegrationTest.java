@@ -109,7 +109,8 @@ class PlatformIntegrationTest {
         assertThat(message.getMessageProperties().getMessageId()).isEqualTo(String.valueOf(id));
         assertThat(message.getMessageProperties().getType()).isEqualTo("booking.confirmed");
         assertThat(message.getMessageProperties().getReceivedRoutingKey()).isEqualTo("booking.confirmed");
-        assertThat((Object) message.getMessageProperties().getHeader(EventHeaders.AGGREGATE_ID)).isEqualTo("BK-42");
+        assertThat(message.getMessageProperties().getHeaders()).containsEntry(EventHeaders.AGGREGATE_ID, "BK-42");
+        assertThat(message.getMessageProperties().getHeaders().get(EventHeaders.VERSION)).isEqualTo(1);
         assertThat(new String(message.getBody(), StandardCharsets.UTF_8))
                 .contains("\"bookingId\":\"BK-42\"").contains("\"amountMinor\":12500");
         assertThat(rabbitTemplate.receive(queue.getName(), 500)).isNull();
@@ -136,9 +137,12 @@ class PlatformIntegrationTest {
     @Test
     void inboxAcceptsEachMessageOncePerConsumer() {
         UUID messageId = UUID.randomUUID();
-        assertThat(tx.execute(s -> inbox.firstDelivery(messageId, "notification"))).isTrue();
-        assertThat(tx.execute(s -> inbox.firstDelivery(messageId, "notification"))).isFalse();
-        assertThat(tx.execute(s -> inbox.firstDelivery(messageId, "dispatch"))).isTrue();
+        Boolean first = tx.execute(s -> inbox.firstDelivery(messageId, "notification"));
+        Boolean redelivered = tx.execute(s -> inbox.firstDelivery(messageId, "notification"));
+        Boolean otherConsumer = tx.execute(s -> inbox.firstDelivery(messageId, "dispatch"));
+        assertThat(first).isTrue();
+        assertThat(redelivered).isFalse();
+        assertThat(otherConsumer).isTrue();
     }
 
     @Test
