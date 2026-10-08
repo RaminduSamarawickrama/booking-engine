@@ -1,0 +1,10 @@
+[versions]
+spring-boot = "4.1.1"
+stripe = "33.4.0"
+
+[libraries]
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+stripe-java = { module = "com.stripe:stripe-java", version.ref = "stripe" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
