@@ -41,6 +41,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
 /**
  * Boots a service made only of the platform library against real Postgres and RabbitMQ,
  * using the same shared configuration file the services import.
@@ -91,6 +94,7 @@ class PlatformIntegrationTest {
     @Autowired RabbitTemplate rabbitTemplate;
     @Autowired RabbitAdmin admin;
     @Autowired TopicExchange exchange;
+    @Autowired JsonMapper json;
 
     @Test
     void committedEventsArePublishedOnceWithTheirMetadata() {
@@ -111,8 +115,9 @@ class PlatformIntegrationTest {
         assertThat(message.getMessageProperties().getReceivedRoutingKey()).isEqualTo("booking.confirmed");
         assertThat(message.getMessageProperties().getHeaders()).containsEntry(EventHeaders.AGGREGATE_ID, "BK-42");
         assertThat(message.getMessageProperties().getHeaders().get(EventHeaders.VERSION)).isEqualTo(1);
-        assertThat(new String(message.getBody(), StandardCharsets.UTF_8))
-                .contains("\"bookingId\":\"BK-42\"").contains("\"amountMinor\":12500");
+        JsonNode payload = json.readTree(new String(message.getBody(), StandardCharsets.UTF_8));
+        assertThat(payload.get("bookingId").asString()).isEqualTo("BK-42");
+        assertThat(payload.get("amountMinor").asLong()).isEqualTo(12_500);
         assertThat(rabbitTemplate.receive(queue.getName(), 500)).isNull();
     }
 
