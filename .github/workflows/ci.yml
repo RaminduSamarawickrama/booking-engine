@@ -35,7 +35,8 @@ jobs:
       - if: steps.detect.outputs.present == 'true'
         name: Build and test (Testcontainers uses the runner's Docker)
         working-directory: services
-        run: ./gradlew --no-daemon build 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+        shell: bash   # explicit bash adds -o pipefail, so a Gradle failure fails the step despite tee
+        run: ./gradlew --no-daemon --continue build 2>&1 | tee "$RUNNER_TEMP/gradle.log"
       - if: always() && steps.detect.outputs.present == 'true'
         name: Report test totals and build errors as annotations
         run: python3 .github/scripts/annotate_gradle.py "$RUNNER_TEMP/gradle.log" "$GITHUB_WORKSPACE/services"
