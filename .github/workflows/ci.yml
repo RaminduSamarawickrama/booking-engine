@@ -1,10 +1,11 @@
 # Free CI: GitHub-hosted runners only, no paid services, no deploy secrets.
 name: CI
 
+# Every push runs CI, so feature branches are checked before a pull request is opened;
+# pull requests from branches in this repo show those same checks.
 on:
-  pull_request:
   push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,32 +20,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Detect Gradle build
         id: detect
         # Steps below are skipped until the first service lands under ./services.
         run: echo "present=$([ -f services/settings.gradle.kts ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: steps.detect.outputs.present == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
       - if: steps.detect.outputs.present == 'true'
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          # No wrapper jar is committed yet; `gradle wrapper` on a dev machine adds one later.
-          gradle-version: current
+        uses: gradle/actions/setup-gradle@v6
       - if: steps.detect.outputs.present == 'true'
-        name: Test (Testcontainers uses the runner's Docker)
+        name: Build and test (Testcontainers uses the runner's Docker)
         working-directory: services
-        run: gradle --no-daemon test
+        shell: bash   # explicit bash adds -o pipefail, so a Gradle failure fails the step despite tee
+        run: ./gradlew --no-daemon --continue build 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+      - if: always() && steps.detect.outputs.present == 'true'
+        name: Report test totals and build errors as annotations
+        run: python3 .github/scripts/annotate_gradle.py "$RUNNER_TEMP/gradle.log" "$GITHUB_WORKSPACE/services"
 
   infra:
     name: Compose and scripts
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate every Compose profile
         run: |
           for profiles in infra infra,apps infra,apps,tunnel,stripe; do

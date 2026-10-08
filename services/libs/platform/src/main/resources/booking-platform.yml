@@ -27,6 +27,7 @@ spring:
     schemas: ${DB_SCHEMA}
     default-schema: ${DB_SCHEMA}
     create-schemas: false          # schemas and roles come from infra/postgres
+    locations: classpath:db/platform,classpath:db/migration   # platform tables (outbox, inbox), then the service's own
   jpa:
     open-in-view: false
   data:
@@ -34,12 +35,19 @@ spring:
       url: ${REDIS_URL:redis://localhost:6379}
   rabbitmq:
     addresses: ${RABBITMQ_URI:amqp://booking:booking-local@localhost:5672/booking}
+    publisher-confirm-type: simple       # the outbox relay waits for broker confirms before marking rows sent
     listener:
       simple:
         default-requeue-rejected: false   # failed messages go to the dead-letter queue
   threads:
     virtual:
       enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
+          jws-algorithms: ES256
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -70,11 +78,23 @@ management:
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
+  structured:
+    format:
+      console: ${LOG_FORMAT:}             # empty = readable text; "ecs" = one JSON object per line
+  pattern:
+    correlation: "[%X{requestId:-}] "
 
 booking:
+  platform:
+    security:
+      public-paths: []                     # each service lists paths that need no token
+    messaging:
+      exchange: booking.events
+      relay-interval: PT1S
+      relay-batch-size: 100
+      retention: P7D
   security:
-    jwks-uri: ${AUTH_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
-    cors-allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
+    cors-allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}   # applied by the gateway only
   providers:
     payment: ${PAYMENT_PROVIDER:mock}       # mock | stripe
     maps: ${MAPS_PROVIDER:mock}             # mock | osm

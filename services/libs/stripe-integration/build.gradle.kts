@@ -4,29 +4,14 @@ plugins {
     `java-library`
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     // Pinned to the SDK that matches API version 2026-08-26.dahlia; webhook endpoints must use the same version.
-    api("com.stripe:stripe-java:33.4.0")
+    api(libs.stripe.java)
+    // stripe-java's model classes carry Gson annotations; javac needs them on the compile classpath.
+    implementation(platform(libs.spring.boot.dependencies))
+    implementation("com.google.code.gson:gson")
 
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation(platform(libs.spring.boot.dependencies))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-serial", "-Werror"))
 }
