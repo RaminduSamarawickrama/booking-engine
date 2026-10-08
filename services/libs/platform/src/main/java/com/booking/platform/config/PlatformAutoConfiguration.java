@@ -12,7 +12,7 @@ import com.booking.platform.web.RequestIdFilter;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -77,7 +77,7 @@ public class PlatformAutoConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnBean({ JdbcClient.class, RabbitTemplate.class, TransactionTemplate.class })
+    @ConditionalOnClass({ JdbcClient.class, RabbitTemplate.class })
     @ConditionalOnProperty(prefix = "booking.platform.messaging", name = "enabled", matchIfMissing = true)
     @EnableScheduling
     static class Messaging {

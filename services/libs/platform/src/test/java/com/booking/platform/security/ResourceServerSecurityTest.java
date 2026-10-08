@@ -23,7 +23,9 @@ class ResourceServerSecurityTest {
 
         assertThat(authentication).isNotNull();
         assertThat(authentication.getName()).isEqualTo("user-1");
+        // Spring Security 7 also adds a FACTOR_BEARER authority recording how the user authenticated.
         assertThat(authentication.getAuthorities()).extracting(GrantedAuthority::getAuthority)
-                .containsExactlyInAnyOrder("ROLE_ADMIN", "ROLE_DISPATCHER");
+                .contains("ROLE_ADMIN", "ROLE_DISPATCHER")
+                .noneMatch(a -> a.contains("ignored"));
     }
 }
