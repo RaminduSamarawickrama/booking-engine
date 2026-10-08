@@ -10,6 +10,8 @@ dependencies {
     implementation(platform(libs.spring.cloud.dependencies))
     implementation("org.springframework.cloud:spring-cloud-starter-gateway-server-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // Apache HttpClient for proxying: pooled connections, and avoids a JDK HttpClient race on bodiless requests.
+    implementation("org.apache.httpcomponents.client5:httpclient5")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
