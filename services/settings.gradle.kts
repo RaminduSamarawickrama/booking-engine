@@ -10,3 +10,7 @@ dependencyResolutionManagement {
 // dispatch, tracking, notification) are added here as each one is implemented.
 include("libs:platform")
 include("libs:stripe-integration")
+
+// Services, one Spring Boot app each.
+include("auth")
+include("gateway")

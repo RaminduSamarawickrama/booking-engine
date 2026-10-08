@@ -48,6 +48,8 @@ spring:
         jwt:
           jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
           jws-algorithms: ES256
+          issuer-uri: ${AUTH_ISSUER:https://auth.booking.local}   # checked against "iss"; never fetched
+          audiences: [booking-api]
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
