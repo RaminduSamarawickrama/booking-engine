@@ -1,7 +1,8 @@
 # Booking Engine — zero-cost development setup
 
 Airport transfer booking platform: Spring Boot microservices, React web apps, React Native mobile apps.
-This repository is set up for the **development/demo phase at $0/month**: everything runs on your
+This repository holds the **backend**: the Spring Boot services, Docker Compose stack, infrastructure
+and planning docs. Each client app lives in its own repo (see [Repositories](#repositories)). It is set up for the **development/demo phase at $0/month**: everything runs on your
 machine, free hosted services are optional, and nothing here creates a billable resource.
 
 | | |
@@ -180,19 +181,15 @@ Real values live only in your git-ignored `.env`, Vercel project settings, or Gi
 ```bash
 cp .env.example .env
 docker compose up -d                 # infrastructure
-npm install && npm test              # web apps and shared packages
-npm run dev -w @booking/customer-web # http://localhost:5173
-npm run dev -w @booking/admin-web -- --port 5174
 ```
+Then run the web or mobile app you need from its own repo (each README has the steps).
 Once services exist: set `COMPOSE_PROFILES=infra,apps` and `docker compose up --build`.
 
 ## 11. How to deploy the free frontend
 
 Already deployed (see top). Updates:
-- **After the GitHub repo exists**: connect each Vercel project to it (root directories
-  `apps/customer-web` and `apps/admin-web`); every push deploys automatically.
-- **Until then**: ask Claude to redeploy through the Vercel connector, or run
-  `npx vercel deploy --prod` inside an app folder.
+Each Vercel project deploys from its own repo (`booking-customer-web`, `booking-admin-web`):
+every push to `main` goes to production and every pull request gets a preview URL.
 
 The web apps do not bake in a tunnel URL. Each has a **Backend** panel that switches between
 localhost, a LAN IP, a tunnel or a demo API at runtime. A `?api=` link is only applied after you
@@ -210,16 +207,15 @@ The tunnel forwards to the gateway only. Postgres, Redis and RabbitMQ are never 
 
 ## 13. How to run the Customer Mobile app
 
-The React Native apps are built in a later increment (see the architecture plan). They will use Expo:
+In [booking-customer-mobile](https://github.com/RaminduSamarawickrama/booking-customer-mobile) (Expo SDK 57):
 ```bash
-cd apps/customer-mobile
-EXPO_PUBLIC_API_BASE_URL=<tunnel or LAN URL> npx expo start
+EXPO_PUBLIC_API_BASE_URL=<tunnel or LAN URL> npx expo start   # scan the QR code with Expo Go
 ```
-They reuse `@booking/runtime-config`, so the backend can also be changed in-app under Settings.
+It uses `@booking/shared/runtime-config`, so the backend can also be changed from the panel in the app.
 
 ## 14. How to run the Driver Mobile app
 
-Same as above from `apps/driver-mobile`. Location sharing needs a development build
+Same as above from [booking-driver-mobile](https://github.com/RaminduSamarawickrama/booking-driver-mobile). Location sharing needs a development build
 (`npx expo run:android`, free) because background location does not work in Expo Go.
 
 ## 15. How to test the complete booking flow
@@ -298,11 +294,20 @@ services/                    Spring Boot services (Gradle multi-project), shared
 services/libs/platform/      shared Spring config: profiles local / dev / demo
 services/libs/stripe-integration/  Stripe Payments, Connect, Invoicing, webhooks (tested)
 connect-recommend-plan.md    Stripe Connect design decisions
-.claude/skills/frontend-design/  UI design guidance used when building the apps
 .githooks/pre-commit         blocks commits containing Stripe keys
-apps/customer-web, admin-web React + Vite apps (deployed on Vercel)
-packages/runtime-config      backend URL switching, shared by web and mobile (unit tested)
-packages/ui                  shared React components and styles
 scripts/tunnel.sh, lan-url.sh  expose the gateway for phones and the web apps
 .github/workflows/ci.yml     free CI
 ```
+
+## Repositories
+
+| Repo | What it is |
+| --- | --- |
+| booking-engine (this repo) | Spring Boot services, Docker Compose, infrastructure, planning docs |
+| [booking-shared](https://github.com/RaminduSamarawickrama/booking-shared) | TypeScript shared by every client: backend switching, shared UI |
+| [booking-customer-web](https://github.com/RaminduSamarawickrama/booking-customer-web) | Customer website (Vercel) |
+| [booking-admin-web](https://github.com/RaminduSamarawickrama/booking-admin-web) | Operations dashboard (Vercel) |
+| [booking-customer-mobile](https://github.com/RaminduSamarawickrama/booking-customer-mobile) | Customer app (Expo) |
+| [booking-driver-mobile](https://github.com/RaminduSamarawickrama/booking-driver-mobile) | Driver app (Expo) |
+
+API contracts (OpenAPI and event schemas) are published from this repo; clients generate their types from them.

@@ -7,7 +7,6 @@ build/
 .env.*
 !.env.example
 !.env.demo.example
-!apps/*/.env.example
 .vercel/
 .DS_Store
 .idea/
