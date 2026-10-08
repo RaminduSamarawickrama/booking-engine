@@ -65,8 +65,8 @@ def main(log_path: str, root: str) -> None:
             for failure in list(case.iter("failure")) + list(case.iter("error")):
                 trace = (failure.text or "").splitlines()
                 causes = [t for t in trace if t.startswith("Caused by:")]
-                head = [t for t in trace[:12] if not t.lstrip().startswith("at ")]
-                detail = (failure.get("message") or "") + "\n" + "\n".join(head + causes)
+                # Root causes first: Spring's context-failure messages are long and would push them out.
+                detail = "\n".join(c[:600] for c in causes[::-1]) + "\n" + (failure.get("message") or "")[:600]
                 error(f"{case.get('classname')}.{case.get('name')} failed: {detail}")
 
     summary = ", ".join(f"{m}: {t[0]} tests, {t[1]} failed, {t[2]} skipped" for m, t in sorted(totals.items()))

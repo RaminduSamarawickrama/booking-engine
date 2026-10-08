@@ -30,7 +30,9 @@ class SigningKeyTest {
         SigningKey key = SigningKey.fromBase64Pem(Base64.getEncoder().encodeToString(both.getBytes(StandardCharsets.US_ASCII)));
 
         assertThat(key.keyId()).isNotBlank();
-        assertThat(key.publicJwkSet().toString()).doesNotContain("\"d\"").doesNotContain("d=");
+        @SuppressWarnings("unchecked")
+        var jwk = ((java.util.List<java.util.Map<String, Object>>) key.publicJwkSet().get("keys")).get(0);
+        assertThat(jwk).containsKeys("x", "y").doesNotContainKey("d");
     }
 
     @Test
