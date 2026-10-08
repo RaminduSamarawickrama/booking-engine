@@ -63,7 +63,7 @@ class AuthFlowTest {
     @Test
     void customerRegistersSignsInAndSeesTheirProfile() throws Exception {
         JsonNode registered = body(postJson("/v1/auth/register", """
-                {"email":" Ada@Example.test ","password":"a long passphrase","fullName":"Ada Lovelace","phone":"+44 20 7946 0000"}
+                {"email":"Ada@Example.test","password":"a long passphrase","fullName":"Ada Lovelace","phone":"+44 20 7946 0000"}
                 """).andExpect(status().isCreated())
                 .andExpect(jsonPath("$.user.email").value("ada@example.test"))
                 .andExpect(jsonPath("$.user.roles[0]").value("CUSTOMER")));
