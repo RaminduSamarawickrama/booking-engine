@@ -19,7 +19,6 @@ import com.booking.platform.messaging.OutboxRelay;
 import com.booking.platform.security.ResourceServerSecurity;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.core.AnonymousQueue;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Message;
@@ -98,7 +97,7 @@ class PlatformIntegrationTest {
 
     @Test
     void committedEventsArePublishedOnceWithTheirMetadata() {
-        Queue queue = new AnonymousQueue();
+        Queue queue = new Queue("platform-test-" + UUID.randomUUID(), false, false, false);
         admin.declareQueue(queue);
         Binding binding = BindingBuilder.bind(queue).to(exchange).with("booking.*");
         admin.declareBinding(binding);
