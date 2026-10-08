@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn a failed Gradle run into GitHub annotations.
+"""Turn a Gradle run into GitHub annotations: errors when it fails, test totals always.
 
 Compile errors, Gradle's "What went wrong" summary and failed tests become ::error lines, so
 the cause of a red build is visible on the pull request (and through the public API)
@@ -50,15 +50,24 @@ def main(log_path: str, root: str) -> None:
         end = next((j for j in range(start, len(log)) if log[j].startswith("* Try:")), min(start + 40, len(log)))
         error("Gradle: " + "\n".join(log[start:end]).strip())
 
+    totals: dict[str, list[int]] = {}
     for report in glob.glob(f"{root}/**/build/test-results/**/*.xml", recursive=True):
         try:
             suite = ET.parse(report).getroot()
         except ET.ParseError:
             continue
+        module = report[len(root) + 1:].split("/build/")[0]
+        t = totals.setdefault(module, [0, 0, 0])
+        t[0] += int(suite.get("tests", 0))
+        t[1] += int(suite.get("failures", 0)) + int(suite.get("errors", 0))
+        t[2] += int(suite.get("skipped", 0))
         for case in suite.iter("testcase"):
             for failure in list(case.iter("failure")) + list(case.iter("error")):
                 detail = (failure.get("message") or "") + "\n" + (failure.text or "")[:3000]
                 error(f"{case.get('classname')}.{case.get('name')} failed: {detail}")
+
+    summary = ", ".join(f"{m}: {t[0]} tests, {t[1]} failed, {t[2]} skipped" for m, t in sorted(totals.items()))
+    print(f"::notice title=Test results::{esc(summary or 'no test reports found')}")
 
 
 if __name__ == "__main__":
