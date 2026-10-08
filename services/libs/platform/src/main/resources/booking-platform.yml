@@ -1,0 +1,125 @@
+# Shared configuration for every booking-engine service.
+# A service imports it from its own application.yml:
+#
+#   spring:
+#     application.name: booking
+#     config.import: classpath:booking-platform.yml
+#
+# Profiles (set SPRING_PROFILES_ACTIVE):
+#   local  service runs in your IDE, infrastructure in Docker on localhost
+#   dev    service runs in Docker Compose next to the infrastructure
+#   demo   infrastructure is free hosted services (Supabase/Neon, Upstash, CloudAMQP)
+#
+# Everything is driven by environment variables, so switching between local and
+# remote infrastructure never needs a code change.
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/booking}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      schema: ${DB_SCHEMA}
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: 1
+      idle-timeout: 120000
+  flyway:
+    schemas: ${DB_SCHEMA}
+    default-schema: ${DB_SCHEMA}
+    create-schemas: false          # schemas and roles come from infra/postgres
+  jpa:
+    open-in-view: false
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+  rabbitmq:
+    addresses: ${RABBITMQ_URI:amqp://booking:booking-local@localhost:5672/booking}
+    listener:
+      simple:
+        default-requeue-rejected: false   # failed messages go to the dead-letter queue
+  threads:
+    virtual:
+      enabled: true
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+
+management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+booking:
+  security:
+    jwks-uri: ${AUTH_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
+    cors-allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
+  providers:
+    payment: ${PAYMENT_PROVIDER:mock}       # mock | stripe
+    maps: ${MAPS_PROVIDER:mock}             # mock | osm
+    flight: ${FLIGHT_PROVIDER:mock}         # mock
+    push: ${PUSH_PROVIDER:log}              # log | fcm
+    sms: ${SMS_PROVIDER:log}                # log
+  payment:
+    mock-webhook-secret: ${MOCK_PAYMENT_WEBHOOK_SECRET:}
+    stripe:
+      secret-key: ${STRIPE_SECRET_KEY:}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      require-test-mode: true             # startup fails on an sk_live_ key outside a prod profile
+  maps:
+    cache-ttl: 30d                        # geocodes and route distances are cached in Redis
+    osm-user-agent: ${OSM_USER_AGENT:booking-engine-dev}
+  tracking:
+    history-sample-seconds: ${TRACKING_HISTORY_SAMPLE_SECONDS:30}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+logging:
+  level:
+    com.booking: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+logging:
+  level:
+    com.booking: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: demo
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:2}   # free Postgres tiers allow few connections
+      minimum-idle: 0
+logging:
+  level:
+    com.booking: INFO

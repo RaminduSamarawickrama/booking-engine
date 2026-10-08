@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.gradle/
+*.log
+.env
+.env.*
+!.env.example
+!.env.demo.example
+!apps/*/.env.example
+.vercel/
+.DS_Store
+.idea/
+*.iml

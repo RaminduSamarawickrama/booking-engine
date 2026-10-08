@@ -1,0 +1,73 @@
+# Free CI: GitHub-hosted runners only, no paid services, no deploy secrets.
+# Web apps deploy through the Vercel GitHub integration (free on Hobby), not from here.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web apps and shared packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+
+  backend:
+    name: Spring Boot services
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect Gradle build
+        id: detect
+        # Steps below are skipped until the first service lands under ./services.
+        run: echo "present=$([ -f services/settings.gradle.kts ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - if: steps.detect.outputs.present == 'true'
+        uses: gradle/actions/setup-gradle@v4
+      - if: steps.detect.outputs.present == 'true'
+        name: Test (Testcontainers uses the runner's Docker)
+        working-directory: services
+        run: ./gradlew --no-daemon test
+
+  infra:
+    name: Compose and scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate every Compose profile
+        run: |
+          for profiles in infra infra,apps infra,apps,tunnel,stripe; do
+            COMPOSE_PROFILES=$profiles docker compose --env-file .env.example config --quiet
+          done
+          docker compose --env-file .env.demo.example config --quiet
+      - name: ShellCheck
+        run: shellcheck scripts/*.sh infra/postgres/init/*.sh
+      - name: No secrets in example env files
+        run: |
+          if grep -nE '^(STRIPE_SECRET_KEY|STRIPE_WEBHOOK_SECRET|FCM_SERVICE_ACCOUNT_B64|AUTH_JWT_PRIVATE_KEY_B64|SMTP_PASSWORD)=[^[:space:]#]' .env.example .env.demo.example; then
+            echo "Example env files must not contain real secret values" >&2
+            exit 1
+          fi

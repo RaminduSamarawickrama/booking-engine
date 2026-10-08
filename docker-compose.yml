@@ -1,0 +1,269 @@
+# booking-engine local development stack.
+#
+#   cp .env.example .env
+#   docker compose up            # starts whatever COMPOSE_PROFILES in .env selects
+#
+# Profiles:
+#   infra   PostgreSQL/PostGIS, Redis, RabbitMQ, Mailpit (local email inbox)
+#   apps    the Spring Boot microservices (built from ./services)
+#   tunnel  Cloudflare quick tunnel to the gateway only (mobile / web demo access)
+#   stripe  Stripe CLI forwarding test-mode webhooks to the gateway
+#
+# Only the gateway is meant to be reached from outside. Infrastructure ports bind to
+# 127.0.0.1 so IDE-run services can use them; other machines on your network cannot.
+name: booking
+
+x-java-service: &java-service
+  profiles: [apps]
+  restart: unless-stopped
+  build:
+    context: ./services
+    dockerfile: Dockerfile
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  mem_limit: ${SERVICE_MEM_LIMIT:-384m}
+  healthcheck:
+    test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8081/actuator/health/readiness"]
+    interval: 15s
+    timeout: 3s
+    retries: 10
+    start_period: 60s
+  depends_on: &java-deps
+    postgres: { condition: service_healthy, required: false }
+    redis: { condition: service_healthy, required: false }
+    rabbitmq: { condition: service_healthy, required: false }
+
+# Settings every service shares. Values come from .env; defaults are local-only.
+x-common-env: &common-env
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-local}
+  SERVER_PORT: "8080"
+  MANAGEMENT_SERVER_PORT: "8081"
+  JAVA_TOOL_OPTIONS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k -XX:+ExitOnOutOfMemoryError}
+  DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/booking}
+  DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  RABBITMQ_URI: ${RABBITMQ_URI:-amqp://booking:booking-local@rabbitmq:5672/booking}
+  AUTH_JWKS_URI: http://auth:8080/.well-known/jwks.json
+  CORS_ALLOWED_ORIGIN_PATTERNS: ${CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  # ---------------------------------------------------------------- infrastructure
+  postgres:
+    profiles: [infra]
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: booking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres-local}
+      # Per-service roles and schemas are created by the init script from these.
+      SERVICES: ${SERVICES:-auth catalog pricing booking payment fleet dispatch tracking notification}
+      SERVICE_DB_PASSWORD_PREFIX: ${SERVICE_DB_PASSWORD_PREFIX:-local-}
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=120", "-c", "log_min_duration_statement=500"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d booking"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    profiles: [infra]
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru"]
+    ports: ["127.0.0.1:${REDIS_PORT:-6379}:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    profiles: [infra]
+    image: rabbitmq:4.1-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: booking
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-booking-local}
+      RABBITMQ_DEFAULT_VHOST: booking
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672"
+    volumes: [rabbitdata:/var/lib/rabbitmq]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mailpit:
+    # Catches every email the app sends; read them at http://localhost:8025.
+    profiles: [infra]
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+
+  # ---------------------------------------------------------------- services
+  gateway:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: gateway } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: gateway
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+    # The only port published by the stack. Set GATEWAY_BIND=0.0.0.0 to test phones on your LAN.
+    ports: ["${GATEWAY_BIND:-127.0.0.1}:${GATEWAY_PORT:-8080}:8080"]
+    depends_on:
+      <<: *java-deps
+      auth: { condition: service_started, required: false }
+
+  auth:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: auth } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: auth
+      DB_SCHEMA: auth
+      DB_USERNAME: auth_svc
+      DB_PASSWORD: ${AUTH_DB_PASSWORD:-local-auth}
+      AUTH_JWT_PRIVATE_KEY_B64: ${AUTH_JWT_PRIVATE_KEY_B64:-}
+      AUTH_SEED_ADMIN_EMAIL: ${AUTH_SEED_ADMIN_EMAIL:-admin@local.test}
+      AUTH_SEED_ADMIN_PASSWORD: ${AUTH_SEED_ADMIN_PASSWORD:-}
+
+  catalog:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: catalog } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: catalog
+      DB_SCHEMA: catalog
+      DB_USERNAME: catalog_svc
+      DB_PASSWORD: ${CATALOG_DB_PASSWORD:-local-catalog}
+      MAPS_PROVIDER: ${MAPS_PROVIDER:-mock}
+      OSM_USER_AGENT: ${OSM_USER_AGENT:-booking-engine-dev}
+
+  pricing:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: pricing } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: pricing
+      DB_SCHEMA: pricing
+      DB_USERNAME: pricing_svc
+      DB_PASSWORD: ${PRICING_DB_PASSWORD:-local-pricing}
+      MAPS_PROVIDER: ${MAPS_PROVIDER:-mock}
+      OSM_USER_AGENT: ${OSM_USER_AGENT:-booking-engine-dev}
+
+  booking:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: booking } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: booking
+      DB_SCHEMA: booking
+      DB_USERNAME: booking_svc
+      DB_PASSWORD: ${BOOKING_DB_PASSWORD:-local-booking}
+      FLIGHT_PROVIDER: ${FLIGHT_PROVIDER:-mock}
+
+  payment:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: payment } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: payment
+      DB_SCHEMA: payment
+      DB_USERNAME: payment_svc
+      DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-local-payment}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
+      MOCK_PAYMENT_WEBHOOK_SECRET: ${MOCK_PAYMENT_WEBHOOK_SECRET:-local-mock-webhook-secret}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+
+  fleet:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: fleet } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: fleet
+      DB_SCHEMA: fleet
+      DB_USERNAME: fleet_svc
+      DB_PASSWORD: ${FLEET_DB_PASSWORD:-local-fleet}
+
+  dispatch:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: dispatch } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: dispatch
+      DB_SCHEMA: dispatch
+      DB_USERNAME: dispatch_svc
+      DB_PASSWORD: ${DISPATCH_DB_PASSWORD:-local-dispatch}
+      MAPS_PROVIDER: ${MAPS_PROVIDER:-mock}
+
+  tracking:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: tracking } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: tracking
+      DB_SCHEMA: tracking
+      DB_USERNAME: tracking_svc
+      DB_PASSWORD: ${TRACKING_DB_PASSWORD:-local-tracking}
+      TRACKING_HISTORY_SAMPLE_SECONDS: ${TRACKING_HISTORY_SAMPLE_SECONDS:-30}
+
+  notification:
+    <<: *java-service
+    build: { context: ./services, args: { SERVICE: notification } }
+    environment:
+      <<: *common-env
+      SERVICE_NAME: notification
+      DB_SCHEMA: notification
+      DB_USERNAME: notification_svc
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-local-notification}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-bookings@local.test}
+      PUSH_PROVIDER: ${PUSH_PROVIDER:-log}
+      FCM_SERVICE_ACCOUNT_B64: ${FCM_SERVICE_ACCOUNT_B64:-}
+      SMS_PROVIDER: ${SMS_PROVIDER:-log}
+
+  # ---------------------------------------------------------------- dev tools
+  tunnel:
+    # Free Cloudflare quick tunnel: a random https://*.trycloudflare.com URL that forwards
+    # to the gateway only. No account, no domain. Run scripts/tunnel.sh to get the URL.
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:latest
+    command: ["tunnel", "--no-autoupdate", "--url", "${TUNNEL_TARGET:-http://gateway:8080}"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  stripe-cli:
+    # Forwards Stripe TEST-mode webhooks to the gateway. Refuses live keys (see entrypoint).
+    profiles: [stripe]
+    image: stripe/stripe-cli:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        case "$$STRIPE_API_KEY" in sk_test_*|rk_test_*) ;; *) echo "Refusing: STRIPE_SECRET_KEY must be a test key" >&2; exit 1;; esac;
+        exec stripe listen --skip-verify --forward-to "$$FORWARD_TO"
+    environment:
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:-}
+      FORWARD_TO: ${STRIPE_FORWARD_TO:-http://gateway:8080/v1/payments/webhooks/stripe}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitdata:
