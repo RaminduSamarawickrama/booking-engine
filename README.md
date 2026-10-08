@@ -162,7 +162,9 @@ None are required for local mode — `.env.example` works as is. Optional or dem
 | `DB_URL`, `<SERVICE>_DB_PASSWORD`, `DB_POOL_SIZE` | services | Postgres location and per-service credentials |
 | `REDIS_URL` | gateway, catalog, pricing, dispatch, tracking | `redis://` locally, `rediss://` for Upstash |
 | `RABBITMQ_URI` | all | `amqp://` locally, `amqps://` for CloudAMQP |
-| `PAYMENT_PROVIDER`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `MOCK_PAYMENT_WEBHOOK_SECRET` | payment | mock or Stripe **test** mode |
+| `PAYMENT_PROVIDER`, `STRIPE_PAYMENTS_API_KEY`, `STRIPE_WEBHOOK_SECRET`, `PLATFORM_COMMISSION_BPS`, `MOCK_PAYMENT_WEBHOOK_SECRET` | payment | mock or Stripe **test** mode; restricted key; 25% commission |
+| `STRIPE_CONNECT_API_KEY` | fleet | restricted key for driver connected accounts |
+| `STRIPE_CLI_API_KEY` | stripe-cli | test key used only to forward webhooks locally |
 | `MAPS_PROVIDER`, `OSM_USER_AGENT` | catalog, pricing, dispatch | mock or free OSM services |
 | `FLIGHT_PROVIDER` | booking | mock |
 | `PUSH_PROVIDER`, `FCM_SERVICE_ACCOUNT_B64` | notification | log or FCM |
@@ -258,6 +260,33 @@ Available as the services land; the target script for the demo is:
 | Log-only SMS, Android-only push | an SMS provider and an Apple Developer account for iOS push |
 | `.env` files | a secrets manager and per-environment configuration |
 
+## Stripe (Payments, Connect, Invoicing)
+
+The design is in [`connect-recommend-plan.md`](connect-recommend-plan.md): customers pay the platform at
+booking (separate charges and transfers), drivers are Accounts v2 recipients with the Express dashboard and
+receive 75% of each completed leg by transfer, and corporate customers get monthly invoices on terms.
+
+`services/libs/stripe-integration` implements it without any web framework, on stripe-java 33.4.0
+(API version `2026-08-26.dahlia`):
+
+| Class | Does |
+|---|---|
+| `StripePaymentsGateway` | Checkout Session (`ui_mode: elements`) for web, PaymentIntent for the mobile PaymentSheet, refunds |
+| `DriverAccountGateway` | v2 driver accounts, onboarding links, Express login links, payout readiness from v2 capability status |
+| `DriverTransferGateway` + `CommissionPolicy` | per-ride transfers from the booking charge (`source_transaction`), reversals |
+| `CorporateInvoiceGateway` | corporate customers, monthly `send_invoice` invoices with one line per ride |
+| `StripeEventTranslator` | verifies webhook signatures and turns events into domain signals |
+
+Every write carries an idempotency key, nothing passes `payment_method_types`, and bookings are confirmed only
+from signed webhooks. Keys: one **restricted** key per service (`rk_test_...`), never a key in source files.
+Enable the key-blocking hook once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Run its tests: `cd services && gradle :libs:stripe-integration:test` (CI runs them on every push).
+
 ## Repository layout
 
 ```text
@@ -267,6 +296,10 @@ docker-compose.yml           local stack (profiles: infra, apps, tunnel, stripe)
 infra/postgres/init/         schema-per-service setup (local and remote)
 services/                    Spring Boot services (Gradle multi-project), shared Dockerfile
 services/libs/platform/      shared Spring config: profiles local / dev / demo
+services/libs/stripe-integration/  Stripe Payments, Connect, Invoicing, webhooks (tested)
+connect-recommend-plan.md    Stripe Connect design decisions
+.claude/skills/frontend-design/  UI design guidance used when building the apps
+.githooks/pre-commit         blocks commits containing Stripe keys
 apps/customer-web, admin-web React + Vite apps (deployed on Vercel)
 packages/runtime-config      backend URL switching, shared by web and mobile (unit tested)
 packages/ui                  shared React components and styles

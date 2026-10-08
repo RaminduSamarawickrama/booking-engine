@@ -185,8 +185,11 @@ services:
       DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-local-payment}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
       MOCK_PAYMENT_WEBHOOK_SECRET: ${MOCK_PAYMENT_WEBHOOK_SECRET:-local-mock-webhook-secret}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Restricted key (rk_test_...) for payment-service only: Checkout Sessions, PaymentIntents,
+      # Refunds, Transfers, Transfer reversals, Customers, Invoices and Invoice items (write).
+      STRIPE_API_KEY: ${STRIPE_PAYMENTS_API_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      PLATFORM_COMMISSION_BPS: ${PLATFORM_COMMISSION_BPS:-2500}
 
   fleet:
     <<: *java-service
@@ -197,6 +200,8 @@ services:
       DB_SCHEMA: fleet
       DB_USERNAME: fleet_svc
       DB_PASSWORD: ${FLEET_DB_PASSWORD:-local-fleet}
+      # Restricted key for fleet-service only: Connect accounts (v2), account links, login links.
+      STRIPE_API_KEY: ${STRIPE_CONNECT_API_KEY:-}
 
   dispatch:
     <<: *java-service
@@ -255,10 +260,10 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        case "$$STRIPE_API_KEY" in sk_test_*|rk_test_*) ;; *) echo "Refusing: STRIPE_SECRET_KEY must be a test key" >&2; exit 1;; esac;
+        case "$$STRIPE_API_KEY" in sk_test_*|rk_test_*) ;; *) echo "Refusing: STRIPE_CLI_API_KEY must be a test key" >&2; exit 1;; esac;
         exec stripe listen --skip-verify --forward-to "$$FORWARD_TO"
     environment:
-      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_API_KEY: ${STRIPE_CLI_API_KEY:-}
       FORWARD_TO: ${STRIPE_FORWARD_TO:-http://gateway:8080/v1/payments/webhooks/stripe}
     extra_hosts: ["host.docker.internal:host-gateway"]
 

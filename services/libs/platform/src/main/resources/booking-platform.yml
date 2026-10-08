@@ -84,9 +84,10 @@ booking:
   payment:
     mock-webhook-secret: ${MOCK_PAYMENT_WEBHOOK_SECRET:}
     stripe:
-      secret-key: ${STRIPE_SECRET_KEY:}
+      api-key: ${STRIPE_API_KEY:}            # restricted key for this service (rk_test_...)
       webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-      require-test-mode: true             # startup fails on an sk_live_ key outside a prod profile
+      allow-live-mode: false               # startup fails on a live key unless explicitly enabled
+    commission-bps: ${PLATFORM_COMMISSION_BPS:2500}
   maps:
     cache-ttl: 30d                        # geocodes and route distances are cached in Redis
     osm-user-agent: ${OSM_USER_AGENT:booking-engine-dev}
