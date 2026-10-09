@@ -100,8 +100,28 @@ jobs:
           admin=$(curl -fsS -H 'Content-Type: application/json' \
             -d '{"email":"admin@local.test","password":"smoke-test-admin-pw"}' "$base/v1/auth/login" | jq -r .accessToken)
           curl -fsS -H "Authorization: Bearer $admin" "$base/v1/admin/users" | jq -e 'length >= 2'
+      - name: Book as a guest through the gateway
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1:8080
+          curl -fsS "$base/v1/catalog/vehicle-categories" | jq -e 'length >= 4'
+          pickup=$(curl -fsS "$base/v1/places?q=heathrow%205" | jq -r '.[0].id')
+          dropoff=$(curl -fsS "$base/v1/places?q=shard" | jq -r '.[0].id')
+          when=$(date -u -d '+3 days' +%Y-%m-%dT10:00:00Z)
+          quote=$(curl -fsS -H 'Content-Type: application/json' \
+            -d "{\"pickupPlaceId\":\"$pickup\",\"dropoffPlaceId\":\"$dropoff\",\"pickupAt\":\"$when\",\"passengers\":2,\"luggage\":2}" \
+            "$base/v1/quotes")
+          echo "$quote" | jq '{distanceMeters, options: [.options[] | {categoryCode, priceMinor}]}'
+          quote_id=$(echo "$quote" | jq -r .id)
+          booking=$(curl -fsS -H 'Content-Type: application/json' -H "Idempotency-Key: smoke-$(date +%s)-abcdefgh" \
+            -d "{\"quoteId\":\"$quote_id\",\"categoryCode\":\"STANDARD\",\"extras\":[{\"code\":\"MEET_GREET\",\"quantity\":1}],\"customerName\":\"Guest Smoke\",\"customerEmail\":\"guest@example.test\",\"customerPhone\":\"+44 7700 900123\",\"flightNumber\":\"BA117\"}" \
+            "$base/v1/bookings")
+          ref=$(echo "$booking" | jq -r .booking.reference)
+          token=$(echo "$booking" | jq -r .manageToken)
+          curl -fsS -H "X-Booking-Token: $token" "$base/v1/bookings/$ref" | jq -e '.status == "PENDING_PAYMENT" and .totalMinor > 0'
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/v1/bookings/$ref")" = 404
       - name: Service logs
         if: failure()
-        run: docker compose logs --no-color --tail 200 auth gateway | tail -n 300 | sed 's/^/::warning::/' | head -40; docker compose logs --no-color --tail 150 auth gateway
+        run: docker compose logs --no-color --tail 150 auth gateway catalog pricing booking | grep -E 'ERROR|WARN|Exception|Caused' | head -60 | sed 's/^/::warning::/'; docker compose ps
       - if: always()
         run: docker compose down -v

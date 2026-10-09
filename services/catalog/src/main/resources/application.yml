@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: catalog
+  config:
+    import: classpath:booking-platform.yml
+
+booking:
+  platform:
+    security:
+      public-paths:
+        - /v1/catalog/**

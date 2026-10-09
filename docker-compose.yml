@@ -120,12 +120,18 @@ services:
       <<: *common-env
       SERVICE_NAME: gateway
       AUTH_URI: http://auth:8080
+      CATALOG_URI: http://catalog:8080
+      PRICING_URI: http://pricing:8080
+      BOOKING_URI: http://booking:8080
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
     # The only port published by the stack. Set GATEWAY_BIND=0.0.0.0 to test phones on your LAN.
     ports: ["${GATEWAY_BIND:-127.0.0.1}:${GATEWAY_PORT:-8080}:8080"]
     depends_on:
       <<: *java-deps
       auth: { condition: service_started, required: false }
+      catalog: { condition: service_started, required: false }
+      pricing: { condition: service_started, required: false }
+      booking: { condition: service_started, required: false }
 
   auth:
     <<: *java-service
@@ -142,7 +148,6 @@ services:
 
   catalog:
     <<: *java-service
-    profiles: [later]   # not implemented yet; moves to the apps profile when it lands
     build: { context: ./services, args: { SERVICE: catalog } }
     environment:
       <<: *common-env
@@ -155,7 +160,6 @@ services:
 
   pricing:
     <<: *java-service
-    profiles: [later]   # not implemented yet; moves to the apps profile when it lands
     build: { context: ./services, args: { SERVICE: pricing } }
     environment:
       <<: *common-env
@@ -168,7 +172,6 @@ services:
 
   booking:
     <<: *java-service
-    profiles: [later]   # not implemented yet; moves to the apps profile when it lands
     build: { context: ./services, args: { SERVICE: booking } }
     environment:
       <<: *common-env
@@ -177,6 +180,8 @@ services:
       DB_USERNAME: booking_svc
       DB_PASSWORD: ${BOOKING_DB_PASSWORD:-local-booking}
       FLIGHT_PROVIDER: ${FLIGHT_PROVIDER:-mock}
+      PRICING_URI: http://pricing:8080
+      CATALOG_URI: http://catalog:8080
 
   payment:
     <<: *java-service

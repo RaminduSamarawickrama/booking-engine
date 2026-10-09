@@ -35,7 +35,8 @@ public class GatewayConfiguration {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOriginPatterns(properties.originPatterns());
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key", RequestIdFilter.HEADER));
+        cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Booking-Token",
+                RequestIdFilter.HEADER));
         cors.setExposedHeaders(List.of(RequestIdFilter.HEADER, "Retry-After", "Location"));
         cors.setAllowCredentials(false); // bearer tokens, not cookies
         cors.setMaxAge(600L);

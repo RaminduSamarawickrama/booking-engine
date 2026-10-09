@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: booking
+  config:
+    import: classpath:booking-platform.yml
+
+booking:
+  platform:
+    security:
+      public-paths:
+        - /v1/bookings
+        - /v1/bookings/*
+        - /v1/bookings/*/cancel
+  booking:
+    pricing-uri: ${PRICING_URI:http://localhost:8084}
+    catalog-uri: ${CATALOG_URI:http://localhost:8083}
+    payment-window: PT30M          # unpaid bookings expire after this
+    quote-grace: PT2M              # a quote may expire while the customer fills in their details

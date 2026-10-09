@@ -14,3 +14,6 @@ include("libs:stripe-integration")
 // Services, one Spring Boot app each.
 include("auth")
 include("gateway")
+include("catalog")
+include("pricing")
+include("booking")

@@ -16,6 +16,18 @@ spring:
               uri: ${AUTH_URI:http://localhost:8082}
               predicates:
                 - Path=/v1/auth/**,/v1/admin/users/**,/.well-known/jwks.json
+            - id: catalog
+              uri: ${CATALOG_URI:http://localhost:8083}
+              predicates:
+                - Path=/v1/catalog/**,/v1/admin/catalog/**
+            - id: pricing
+              uri: ${PRICING_URI:http://localhost:8084}
+              predicates:
+                - Path=/v1/places/**,/v1/quotes/**
+            - id: booking
+              uri: ${BOOKING_URI:http://localhost:8085}
+              predicates:
+                - Path=/v1/bookings/**,/v1/admin/bookings/**
 
 server:
   port: ${SERVER_PORT:8080}
