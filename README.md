@@ -36,7 +36,7 @@ Service map (logical microservices, physically one Compose project):
 | Service | Owns | Covers the names in the brief |
 |---|---|---|
 | gateway | routing, JWT check, rate limiting, CORS, WebSocket upgrade | API Gateway |
-| auth | users, passwords (Argon2id), JWT issuing, refresh tokens, roles CUSTOMER/DRIVER/ADMIN | Authentication |
+| auth | users, passwords (bcrypt), JWT issuing, refresh tokens, roles CUSTOMER/DRIVER/ADMIN | Authentication |
 | catalog | vehicle categories, extras, airports/terminals, journey types, places lookup | Vehicle (catalog) |
 | pricing | pricing rules, quotes | Pricing |
 | booking | bookings, journey legs, customer profiles | Booking, Customer |
@@ -45,6 +45,26 @@ Service map (logical microservices, physically one Compose project):
 | dispatch | matching, offers, assignments, ride states | Driver Matching |
 | tracking | live driver locations, WebSocket fan-out | Location |
 | notification | email, push, SMS | Notification |
+
+### Inside every service: layered architecture
+
+Every Spring Boot service uses the same packages, and calls only go down:
+
+```text
+ web, messaging     presentation: REST controllers + request/response DTOs, RabbitMQ listeners
+      │
+   service          use cases, @Transactional boundaries, publishing events (outbox)
+      │
+ repository, client data access (the service's own schema, JdbcClient) and integration
+      │             (other services over HTTP, map providers)
+   domain           entities, statuses, business rules: plain Java, no Spring, no SQL
+
+ config             Spring wiring, settings, startup jobs; may reach any layer
+```
+
+`libs/architecture` holds the rules and every service has an `ArchitectureTest` that checks them
+with ArchUnit, so the build fails if a controller touches the database, a repository calls a
+service, domain code depends on Spring, or anything outside `repository` uses JDBC.
 
 Each service has its own PostgreSQL **schema and login role** in a single database, so the same
 layout works locally and on a free hosted Postgres. A service's role cannot read another schema
