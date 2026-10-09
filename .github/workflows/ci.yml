@@ -120,8 +120,26 @@ jobs:
           token=$(echo "$booking" | jq -r .manageToken)
           curl -fsS -H "X-Booking-Token: $token" "$base/v1/bookings/$ref" | jq -e '.status == "PENDING_PAYMENT" and .totalMinor > 0'
           test "$(curl -s -o /dev/null -w '%{http_code}' "$base/v1/bookings/$ref")" = 404
+          echo "ref=$ref" >> "$GITHUB_ENV"
+          echo "token=$token" >> "$GITHUB_ENV"
+      - name: Pay with a mock test card and see the booking confirmed
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1:8080
+          payment=$(curl -fsS -H 'Content-Type: application/json' -H "X-Booking-Token: $token" \
+            -d "{\"bookingReference\":\"$ref\"}" "$base/v1/payments")
+          id=$(echo "$payment" | jq -r .paymentId)
+          curl -fsS -H 'Content-Type: application/json' -d '{"cardNumber":"4242 4242 4242 4242"}' \
+            "$base/v1/payments/$id/mock-confirm" | jq -e '.status == "SUCCEEDED"'
+          for i in $(seq 1 30); do
+            status=$(curl -fsS -H "X-Booking-Token: $token" "$base/v1/bookings/$ref" | jq -r .status)
+            [ "$status" = CONFIRMED ] && echo "Booking $ref confirmed after ${i}s" && exit 0
+            sleep 1
+          done
+          echo "Booking $ref is still $status" >&2
+          exit 1
       - name: Service logs
         if: failure()
-        run: docker compose logs --no-color --tail 150 auth gateway catalog pricing booking | grep -E 'ERROR|WARN|Exception|Caused' | head -60 | sed 's/^/::warning::/'; docker compose ps
+        run: docker compose logs --no-color --tail 150 auth gateway catalog pricing booking payment | grep -E 'ERROR|WARN|Exception|Caused' | head -60 | sed 's/^/::warning::/'; docker compose ps
       - if: always()
         run: docker compose down -v

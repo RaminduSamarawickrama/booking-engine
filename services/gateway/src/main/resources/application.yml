@@ -28,6 +28,10 @@ spring:
               uri: ${BOOKING_URI:http://localhost:8085}
               predicates:
                 - Path=/v1/bookings/**,/v1/admin/bookings/**
+            - id: payment
+              uri: ${PAYMENT_URI:http://localhost:8086}
+              predicates:
+                - Path=/v1/payments/**
 
 server:
   port: ${SERVER_PORT:8080}

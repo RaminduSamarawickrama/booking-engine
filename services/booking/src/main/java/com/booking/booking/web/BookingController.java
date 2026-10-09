@@ -71,14 +71,14 @@ public class BookingController {
     public record ExtraView(String code, int quantity, int unitPriceMinor, int totalMinor) {
     }
 
-    public record BookingView(String reference, String status, String customerName, String customerEmail,
+    public record BookingView(java.util.UUID bookingId, String reference, String status, String customerName, String customerEmail,
             String customerPhone, JsonNode pickup, JsonNode dropoff, Instant pickupAt, int passengers, int luggage,
             String flightNumber, String driverNotes, String categoryCode, String currency, int vehiclePriceMinor,
             List<ExtraView> extras, int extrasTotalMinor, int totalMinor, int distanceMeters, int durationSeconds,
             boolean linkedToAccount, Instant createdAt) {
 
         public static BookingView of(Booking b) {
-            return new BookingView(b.reference(), b.status().name(), b.customerName(), b.customerEmail(),
+            return new BookingView(b.id(), b.reference(), b.status().name(), b.customerName(), b.customerEmail(),
                     b.customerPhone(), b.pickup(), b.dropoff(), b.pickupAt(), b.passengers(), b.luggage(),
                     b.flightNumber(), b.driverNotes(), b.categoryCode(), b.currency(), b.vehiclePriceMinor(),
                     b.extras().stream().map(e -> new ExtraView(e.code(), e.quantity(), e.unitPriceMinor(), e.totalMinor()))

@@ -123,6 +123,7 @@ services:
       CATALOG_URI: http://catalog:8080
       PRICING_URI: http://pricing:8080
       BOOKING_URI: http://booking:8080
+      PAYMENT_URI: http://payment:8080
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
     # The only port published by the stack. Set GATEWAY_BIND=0.0.0.0 to test phones on your LAN.
     ports: ["${GATEWAY_BIND:-127.0.0.1}:${GATEWAY_PORT:-8080}:8080"]
@@ -132,6 +133,7 @@ services:
       catalog: { condition: service_started, required: false }
       pricing: { condition: service_started, required: false }
       booking: { condition: service_started, required: false }
+      payment: { condition: service_started, required: false }
 
   auth:
     <<: *java-service
@@ -185,7 +187,6 @@ services:
 
   payment:
     <<: *java-service
-    profiles: [later]   # not implemented yet; moves to the apps profile when it lands
     build: { context: ./services, args: { SERVICE: payment } }
     environment:
       <<: *common-env
@@ -194,7 +195,10 @@ services:
       DB_USERNAME: payment_svc
       DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-local-payment}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
-      MOCK_PAYMENT_WEBHOOK_SECRET: ${MOCK_PAYMENT_WEBHOOK_SECRET:-local-mock-webhook-secret}
+      BOOKING_URI: http://booking:8080
+      # Where Stripe returns the customer after 3-D Secure or wallet redirects ({REFERENCE} is filled in).
+      PAYMENT_RETURN_URL: ${PAYMENT_RETURN_URL:-http://localhost:5173/#/booking/{REFERENCE}?paid={CHECKOUT_SESSION_ID}}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       # Restricted key (rk_test_...) for payment-service only: Checkout Sessions, PaymentIntents,
       # Refunds, Transfers, Transfer reversals, Customers, Invoices and Invoice items (write).
       STRIPE_API_KEY: ${STRIPE_PAYMENTS_API_KEY:-}
