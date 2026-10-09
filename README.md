@@ -303,6 +303,25 @@ git config core.hooksPath .githooks
 
 Run its tests: `cd services && gradle :libs:stripe-integration:test` (CI runs them on every push).
 
+### Taking payments
+
+payment-service uses the **mock** provider unless told otherwise: the booking page shows a test-card
+form (`4242 4242 4242 4242` succeeds, `4000 0000 0000 0002` is declined) and no money moves.
+
+To try **Stripe test mode** instead, set these in your `.env` (test keys only; live keys are refused):
+
+```bash
+PAYMENT_PROVIDER=stripe
+STRIPE_PAYMENTS_API_KEY=rk_test_...      # restricted key: Checkout Sessions, PaymentIntents, Refunds (write)
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_CLI_API_KEY=sk_test_...           # only for the CLI container that forwards webhooks
+COMPOSE_PROFILES=infra,apps,stripe
+```
+
+Start the stack, copy the `whsec_...` that `docker compose logs stripe-cli` prints into
+`STRIPE_WEBHOOK_SECRET`, and restart payment-service. The booking page then shows Stripe's Payment
+Element; use Stripe's test cards. Bookings are confirmed only when Stripe's signed webhook arrives.
+
 ## Repository layout
 
 ```text
