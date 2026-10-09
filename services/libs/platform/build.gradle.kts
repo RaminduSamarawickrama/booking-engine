@@ -31,6 +31,7 @@ dependencies {
 
     // Shared by every service's integration tests: one Postgres and one RabbitMQ per test JVM.
     testFixturesApi(platform(libs.spring.boot.dependencies))
+    testFixturesApi("org.springframework.boot:spring-boot-test")
     testFixturesApi("org.springframework.boot:spring-boot-testcontainers")
     testFixturesApi("org.testcontainers:testcontainers-postgresql")
     testFixturesApi("org.testcontainers:testcontainers-rabbitmq")
