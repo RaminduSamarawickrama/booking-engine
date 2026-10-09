@@ -37,6 +37,11 @@ class ProblemResponsesTest {
             throw new IllegalStateException("database password is hunter2");
         }
 
+        @GetMapping("/constraint")
+        String constraint() {
+            throw new jakarta.validation.ConstraintViolationException("limit: must be at most 200", java.util.Set.of());
+        }
+
         @PostMapping("/passengers")
         String create(@Valid @RequestBody Passenger passenger) {
             return passenger.name();
@@ -80,6 +85,13 @@ class ProblemResponsesTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("validation_failed"))
                 .andExpect(jsonPath("$.errors[0].field").value("name"));
+    }
+
+    @Test
+    void parameterViolationsAreBadRequests() throws Exception {
+        mvc.perform(get("/constraint"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation_failed"));
     }
 
     @Test

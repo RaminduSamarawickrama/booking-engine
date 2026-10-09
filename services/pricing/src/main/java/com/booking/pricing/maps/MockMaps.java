@@ -64,7 +64,8 @@ public class MockMaps implements MapsProvider {
         String[] words = q.split("\\s+");
         return PLACES.stream()
                 .filter(p -> {
-                    String text = (p.name() + " " + p.address() + " " + (p.airportIata() == null ? "" : p.airportIata()))
+                    String text = (p.name() + " " + p.address() + " " + p.id() + " "
+                            + (p.airportIata() == null ? "" : p.airportIata() + " " + p.terminal()))
                             .toLowerCase(Locale.ROOT);
                     for (String w : words) {
                         if (!text.contains(w)) {
