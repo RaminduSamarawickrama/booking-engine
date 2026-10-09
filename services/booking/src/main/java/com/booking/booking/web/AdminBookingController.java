@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 
-import com.booking.booking.domain.BookingRepository;
+import com.booking.booking.service.BookingService;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -22,10 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class AdminBookingController {
 
-    private final BookingRepository repository;
+    private final BookingService bookings;
 
-    public AdminBookingController(BookingRepository repository) {
-        this.repository = repository;
+    public AdminBookingController(BookingService bookings) {
+        this.bookings = bookings;
     }
 
     @GetMapping
@@ -33,6 +33,6 @@ public class AdminBookingController {
             @RequestParam(required = false) @Pattern(regexp = "PENDING_PAYMENT|CONFIRMED|CANCELLED|EXPIRED") String status,
             @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit,
             @RequestParam(defaultValue = "0") @Min(0) int offset) {
-        return repository.findRecent(status, limit, offset).stream().map(BookingController.BookingView::of).toList();
+        return bookings.recent(status, limit, offset).stream().map(BookingController.BookingView::of).toList();
     }
 }

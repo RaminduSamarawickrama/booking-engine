@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":libs:platform"))
     testImplementation(testFixtures(project(":libs:platform")))
 
+    testImplementation(project(":libs:architecture"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")

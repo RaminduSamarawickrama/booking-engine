@@ -3,8 +3,8 @@ package com.booking.auth;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.booking.auth.users.PasswordPolicy;
-import com.booking.platform.web.ApiException;
+import com.booking.auth.domain.PasswordPolicy;
+import com.booking.platform.error.ApiException;
 
 import org.junit.jupiter.api.Test;
 

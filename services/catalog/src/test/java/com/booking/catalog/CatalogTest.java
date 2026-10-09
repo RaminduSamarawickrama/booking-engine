@@ -67,7 +67,7 @@ class CatalogTest {
                 .andExpect(jsonPath("$[1].code").value("ELECTRIC"));
         mvc.perform(put("/v1/admin/catalog/vehicle-categories/bad code").with(role("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().is(422));
     }
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor role(String role) {

@@ -7,10 +7,10 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
-import com.booking.pricing.maps.Place;
-import com.booking.pricing.maps.Route;
-import com.booking.pricing.quotes.PricingRules;
-import com.booking.pricing.quotes.QuoteCalculator;
+import com.booking.pricing.domain.Place;
+import com.booking.pricing.domain.Route;
+import com.booking.pricing.domain.PricingRules;
+import com.booking.pricing.domain.QuoteCalculator;
 
 import org.junit.jupiter.api.Test;
 

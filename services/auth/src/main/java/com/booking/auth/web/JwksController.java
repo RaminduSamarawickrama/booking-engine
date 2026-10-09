@@ -3,7 +3,7 @@ package com.booking.auth.web;
 import java.time.Duration;
 import java.util.Map;
 
-import com.booking.auth.keys.SigningKey;
+import com.booking.auth.config.SigningKey;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;

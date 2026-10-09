@@ -14,10 +14,11 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import com.booking.booking.Bookings;
+import com.booking.booking.service.BookingService;
+import com.booking.booking.service.IdempotencyService;
 import com.booking.booking.domain.Booking;
 
-import com.booking.platform.web.ApiException;
+import com.booking.platform.error.ApiException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,10 +46,10 @@ public class BookingController {
 
     public static final String TOKEN_HEADER = "X-Booking-Token";
 
-    private final Bookings bookings;
-    private final IdempotentRequests idempotent;
+    private final BookingService bookings;
+    private final IdempotencyService idempotent;
 
-    public BookingController(Bookings bookings, IdempotentRequests idempotent) {
+    public BookingController(BookingService bookings, IdempotencyService idempotent) {
         this.bookings = bookings;
         this.idempotent = idempotent;
     }
@@ -97,14 +98,14 @@ public class BookingController {
      */
     @PostMapping
     public ResponseEntity<CreatedView> create(@Valid @RequestBody CreateRequest request,
-            @RequestHeader(name = IdempotentRequests.HEADER, required = false) String idempotencyKey,
+            @RequestHeader(name = IdempotencyService.HEADER, required = false) String idempotencyKey,
             Authentication auth) {
         UUID user = userId(auth);
         var result = idempotent.run(idempotencyKey, java.util.Arrays.asList(request, user), CreatedView.class, () -> {
-            Bookings.Created created = bookings.create(new Bookings.NewBooking(request.quoteId(),
+            BookingService.Created created = bookings.create(new BookingService.NewBooking(request.quoteId(),
                     request.categoryCode(),
                     request.extras() == null ? List.of()
-                            : request.extras().stream().map(e -> new Bookings.ExtraRequest(e.code(), e.quantity())).toList(),
+                            : request.extras().stream().map(e -> new BookingService.ExtraRequest(e.code(), e.quantity())).toList(),
                     request.customerName(), request.customerEmail(), request.customerPhone(), request.flightNumber(),
                     request.driverNotes(), user));
             return new CreatedView(BookingView.of(created.booking()), created.manageToken());

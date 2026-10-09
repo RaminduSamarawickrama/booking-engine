@@ -9,7 +9,7 @@ import java.security.KeyPairGenerator;
 import java.security.spec.ECGenParameterSpec;
 import java.util.Base64;
 
-import com.booking.auth.keys.SigningKey;
+import com.booking.auth.config.SigningKey;
 
 import org.junit.jupiter.api.Test;
 

@@ -11,9 +11,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
-import com.booking.auth.users.Accounts;
-import com.booking.auth.users.Role;
-import com.booking.auth.users.UserRepository;
+import com.booking.auth.service.AccountService;
+import com.booking.auth.domain.Role;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,12 +32,10 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class AdminUserController {
 
-    private final Accounts accounts;
-    private final UserRepository users;
+    private final AccountService accounts;
 
-    public AdminUserController(Accounts accounts, UserRepository users) {
+    public AdminUserController(AccountService accounts) {
         this.accounts = accounts;
-        this.users = users;
     }
 
     public record CreateUserRequest(
@@ -59,6 +56,6 @@ public class AdminUserController {
     @GetMapping
     public List<AuthController.UserView> list(@RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit,
             @RequestParam(defaultValue = "0") @Min(0) int offset) {
-        return users.findAll(limit, offset).stream().map(AuthController.UserView::of).toList();
+        return accounts.list(limit, offset).stream().map(AuthController.UserView::of).toList();
     }
 }

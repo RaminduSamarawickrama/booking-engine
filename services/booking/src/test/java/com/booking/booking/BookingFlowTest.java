@@ -18,9 +18,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.booking.booking.clients.CatalogClient;
-import com.booking.booking.clients.PricingClient;
-import com.booking.booking.domain.BookingRepository;
+import com.booking.booking.client.CatalogClient;
+import com.booking.booking.service.BookingService;
+import com.booking.booking.client.PricingClient;
+import com.booking.booking.repository.BookingRepository;
 import com.booking.booking.domain.BookingStatus;
 import com.booking.platform.security.ResourceServerSecurity;
 import com.booking.platform.test.Infrastructure;
@@ -51,7 +52,7 @@ class BookingFlowTest {
     @Autowired MockMvc mvc;
     @Autowired JsonMapper json;
     @Autowired JdbcClient jdbc;
-    @Autowired Bookings bookings;
+    @Autowired BookingService bookings;
     @Autowired BookingRepository repository;
 
     @MockitoBean PricingClient pricing;

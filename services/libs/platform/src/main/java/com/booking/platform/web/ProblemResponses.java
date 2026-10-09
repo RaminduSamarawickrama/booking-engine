@@ -1,5 +1,6 @@
 package com.booking.platform.web;
 
+import com.booking.platform.error.ApiException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;

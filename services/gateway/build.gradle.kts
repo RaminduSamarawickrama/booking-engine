@@ -13,6 +13,7 @@ dependencies {
     // Apache HttpClient for proxying: pooled connections, and avoids a JDK HttpClient race on bodiless requests.
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
+    testImplementation(project(":libs:architecture"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

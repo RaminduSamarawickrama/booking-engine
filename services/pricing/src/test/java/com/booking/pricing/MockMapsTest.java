@@ -2,8 +2,8 @@ package com.booking.pricing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.booking.pricing.maps.MockMaps;
-import com.booking.pricing.maps.Place;
+import com.booking.pricing.client.MockMaps;
+import com.booking.pricing.domain.Place;
 
 import org.junit.jupiter.api.Test;
 

@@ -10,9 +10,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import com.booking.auth.users.Accounts;
-import com.booking.auth.users.Role;
-import com.booking.auth.users.User;
+import com.booking.auth.service.AccountService;
+import com.booking.auth.domain.Role;
+import com.booking.auth.domain.User;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,9 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/auth")
 public class AuthController {
 
-    private final Accounts accounts;
+    private final AccountService accounts;
 
-    public AuthController(Accounts accounts) {
+    public AuthController(AccountService accounts) {
         this.accounts = accounts;
     }
 
@@ -56,7 +56,7 @@ public class AuthController {
 
     public record SessionView(String tokenType, String accessToken, Instant accessTokenExpiresAt,
             String refreshToken, Instant refreshTokenExpiresAt, UserView user) {
-        static SessionView of(Accounts.Session session) {
+        static SessionView of(AccountService.Session session) {
             return new SessionView("Bearer", session.access().token(), session.access().expiresAt(),
                     session.refresh().token(), session.refresh().expiresAt(), UserView.of(session.user()));
         }

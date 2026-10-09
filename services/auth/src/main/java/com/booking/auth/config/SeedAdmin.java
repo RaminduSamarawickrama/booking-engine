@@ -4,9 +4,8 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Set;
 
-import com.booking.auth.users.Accounts;
-import com.booking.auth.users.Role;
-import com.booking.auth.users.UserRepository;
+import com.booking.auth.service.AccountService;
+import com.booking.auth.domain.Role;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,20 +22,18 @@ public class SeedAdmin implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedAdmin.class);
 
-    private final Accounts accounts;
-    private final UserRepository users;
+    private final AccountService accounts;
     private final AuthProperties properties;
 
-    public SeedAdmin(Accounts accounts, UserRepository users, AuthProperties properties) {
+    public SeedAdmin(AccountService accounts, AuthProperties properties) {
         this.accounts = accounts;
-        this.users = users;
         this.properties = properties;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         String email = properties.seedAdmin().email();
-        if (email == null || email.isBlank() || users.existsWithRole(Role.ADMIN)) {
+        if (email == null || email.isBlank() || accounts.adminExists()) {
             return;
         }
         String password = properties.seedAdmin().password();

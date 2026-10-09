@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":libs:platform"))
     implementation("org.springframework.security:spring-security-oauth2-jose")
 
+    testImplementation(project(":libs:architecture"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
