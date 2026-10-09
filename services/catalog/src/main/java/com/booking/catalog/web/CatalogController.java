@@ -20,7 +20,6 @@ public class CatalogController {
     private static final CacheControl CACHE = CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic();
 
     private final CatalogService catalog;
-    private final com.booking.catalog.repository.CatalogRepository shortcut = null; // deliberate violation
 
     public CatalogController(CatalogService catalog) {
         this.catalog = catalog;
