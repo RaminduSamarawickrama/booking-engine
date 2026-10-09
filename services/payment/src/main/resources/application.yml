@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: payment
+  config:
+    import: classpath:booking-platform.yml
+
+booking:
+  platform:
+    security:
+      public-paths:
+        - /v1/payments
+        - /v1/payments/*
+        - /v1/payments/*/mock-confirm
+        - /v1/payments/webhooks/stripe
+  payments:
+    booking-uri: ${BOOKING_URI:http://localhost:8085}
+    # Where Stripe sends the customer back after a redirect-based payment method (3-D Secure, wallets).
+    return-url: ${PAYMENT_RETURN_URL:http://localhost:5173/#/booking/{REFERENCE}?paid={CHECKOUT_SESSION_ID}}
+    stripe-publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+    # Tags Checkout Sessions so this integration can be told apart in the Stripe Dashboard.
+    stripe-integration-identifier: transfers-web-checkout-qbmvkrzt
