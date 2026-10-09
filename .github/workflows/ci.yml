@@ -73,3 +73,55 @@ jobs:
             echo "Example env files must not contain real secret values" >&2
             exit 1
           fi
+
+  stack:
+    name: Docker stack smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images and start infra, auth and gateway
+        run: |
+          cp .env.example .env
+          echo "COMPOSE_PROFILES=infra,apps" >> .env
+          echo "AUTH_SEED_ADMIN_PASSWORD=smoke-test-admin-pw" >> .env
+          docker compose up -d --build --wait --wait-timeout 300
+      - name: Sign up and sign in through the gateway
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1:8080
+          curl -fsS "$base/health"
+          curl -fsS -o /dev/null "$base/.well-known/jwks.json"
+          session=$(curl -fsS -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.test","password":"a long passphrase","fullName":"Smoke Test"}' \
+            "$base/v1/auth/register")
+          token=$(echo "$session" | jq -r .accessToken)
+          curl -fsS -H "Authorization: Bearer $token" "$base/v1/auth/me" | jq -e '.email == "smoke@example.test"'
+          admin=$(curl -fsS -H 'Content-Type: application/json' \
+            -d '{"email":"admin@local.test","password":"smoke-test-admin-pw"}' "$base/v1/auth/login" | jq -r .accessToken)
+          curl -fsS -H "Authorization: Bearer $admin" "$base/v1/admin/users" | jq -e 'length >= 2'
+      - name: Book as a guest through the gateway
+        run: |
+          set -euo pipefail
+          base=http://127.0.0.1:8080
+          curl -fsS "$base/v1/catalog/vehicle-categories" | jq -e 'length >= 4'
+          pickup=$(curl -fsS "$base/v1/places?q=heathrow%205" | jq -r '.[0].id')
+          dropoff=$(curl -fsS "$base/v1/places?q=shard" | jq -r '.[0].id')
+          when=$(date -u -d '+3 days' +%Y-%m-%dT10:00:00Z)
+          quote=$(curl -fsS -H 'Content-Type: application/json' \
+            -d "{\"pickupPlaceId\":\"$pickup\",\"dropoffPlaceId\":\"$dropoff\",\"pickupAt\":\"$when\",\"passengers\":2,\"luggage\":2}" \
+            "$base/v1/quotes")
+          echo "$quote" | jq '{distanceMeters, options: [.options[] | {categoryCode, priceMinor}]}'
+          quote_id=$(echo "$quote" | jq -r .id)
+          booking=$(curl -fsS -H 'Content-Type: application/json' -H "Idempotency-Key: smoke-$(date +%s)-abcdefgh" \
+            -d "{\"quoteId\":\"$quote_id\",\"categoryCode\":\"STANDARD\",\"extras\":[{\"code\":\"MEET_GREET\",\"quantity\":1}],\"customerName\":\"Guest Smoke\",\"customerEmail\":\"guest@example.test\",\"customerPhone\":\"+44 7700 900123\",\"flightNumber\":\"BA117\"}" \
+            "$base/v1/bookings")
+          ref=$(echo "$booking" | jq -r .booking.reference)
+          token=$(echo "$booking" | jq -r .manageToken)
+          curl -fsS -H "X-Booking-Token: $token" "$base/v1/bookings/$ref" | jq -e '.status == "PENDING_PAYMENT" and .totalMinor > 0'
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/v1/bookings/$ref")" = 404
+      - name: Service logs
+        if: failure()
+        run: docker compose logs --no-color --tail 150 auth gateway catalog pricing booking | grep -E 'ERROR|WARN|Exception|Caused' | head -60 | sed 's/^/::warning::/'; docker compose ps
+      - if: always()
+        run: docker compose down -v

@@ -9,6 +9,10 @@ import com.booking.platform.security.ResourceServerSecurity;
 import com.booking.platform.web.ProblemResponses;
 import com.booking.platform.web.RequestIdFilter;
 
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.FanoutExchange;
+import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -44,6 +48,8 @@ import tools.jackson.databind.json.JsonMapper;
                 "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration" })
 @EnableConfigurationProperties(PlatformProperties.class)
 public class PlatformAutoConfiguration {
+
+    public static final String DEAD_LETTER_EXCHANGE = "booking.dlx";
 
     @Bean
     @ConditionalOnMissingBean
@@ -85,6 +91,25 @@ public class PlatformAutoConfiguration {
         @Bean
         TopicExchange bookingEventsExchange(PlatformProperties properties) {
             return new TopicExchange(properties.messaging().exchange(), true, false);
+        }
+
+        /**
+         * Messages a consumer rejects (after its handler threw) land here instead of being lost.
+         * Consumer queues opt in with {@code x-dead-letter-exchange = booking.dlx}.
+         */
+        @Bean
+        FanoutExchange deadLetterExchange() {
+            return new FanoutExchange(DEAD_LETTER_EXCHANGE, true, false);
+        }
+
+        @Bean
+        Queue deadLetterQueue() {
+            return new Queue("booking.dead-letters", true);
+        }
+
+        @Bean
+        Binding deadLetterBinding(Queue deadLetterQueue, FanoutExchange deadLetterExchange) {
+            return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange);
         }
 
         @Bean

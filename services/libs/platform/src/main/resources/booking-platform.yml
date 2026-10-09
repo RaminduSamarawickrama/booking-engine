@@ -10,6 +10,9 @@
 #   dev    service runs in Docker Compose next to the infrastructure
 #   demo   infrastructure is free hosted services (Supabase/Neon, Upstash, CloudAMQP)
 #
+# Precedence: this file is imported, so it wins over the service's own application.yml for any
+# key it sets. Keep only shared settings here; service-specific values belong to the service.
+#
 # Everything is driven by environment variables, so switching between local and
 # remote infrastructure never needs a code change.
 
@@ -48,6 +51,8 @@ spring:
         jwt:
           jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8082/.well-known/jwks.json}
           jws-algorithms: ES256
+          issuer-uri: ${AUTH_ISSUER:https://auth.booking.local}   # checked against "iss"; never fetched
+          audiences: booking-api               # comma-separated list
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -85,14 +90,9 @@ logging:
     correlation: "[%X{requestId:-}] "
 
 booking:
-  platform:
-    security:
-      public-paths: []                     # each service lists paths that need no token
-    messaging:
-      exchange: booking.events
-      relay-interval: PT1S
-      relay-batch-size: 100
-      retention: P7D
+  # booking.platform.* (public paths, messaging) defaults live in PlatformProperties and are set
+  # per service. They are deliberately absent here: an imported file overrides the importing one,
+  # so anything set in this file cannot be changed from a service's application.yml.
   security:
     cors-allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}   # applied by the gateway only
   providers:

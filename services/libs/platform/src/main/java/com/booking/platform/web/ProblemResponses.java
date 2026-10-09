@@ -1,8 +1,11 @@
 package com.booking.platform.web;
 
+import com.booking.platform.error.ApiException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+
+import jakarta.validation.ConstraintViolationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +36,21 @@ public class ProblemResponses extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ProblemDetail handleApi(ApiException ex) {
         return problem(ex.status(), ex.code(), ex.getMessage());
+    }
+
+    /** Invalid path or query parameters on a {@code @Validated} controller. */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
+        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, "validation_failed", "Some parameters are invalid.");
+        body.setProperty("errors", ex.getConstraintViolations().stream()
+                .map(v -> Map.of("field", lastNode(v.getPropertyPath().toString()), "message", v.getMessage()))
+                .toList());
+        return body;
+    }
+
+    private static String lastNode(String path) {
+        int dot = path.lastIndexOf('.');
+        return dot < 0 ? path : path.substring(dot + 1);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

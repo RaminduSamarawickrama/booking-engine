@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: pricing
+  config:
+    import: classpath:booking-platform.yml
+
+booking:
+  platform:
+    security:
+      public-paths:
+        - /v1/places/**
+        - /v1/quotes/**
+  pricing:
+    currency: GBP
+    zone: Europe/London            # night surcharge hours are local to the operating area
+    quote-validity: PT30M
+    minimum-lead-time: PT2H        # how far ahead a ride must be booked
+    maximum-advance: P365D

@@ -1,11 +1,12 @@
-package com.booking.platform.web;
+package com.booking.platform.error;
 
 import org.springframework.http.HttpStatus;
 
 /**
- * Base class for errors a service deliberately returns to its caller. The {@code code} is a
- * stable, machine-readable identifier (for example {@code booking_not_found}) that clients
- * can switch on; the message is a human-readable detail and may change.
+ * An error a service deliberately returns to its caller, thrown from any layer (domain rules
+ * included) and turned into a problem response by the web layer. The {@code code} is a stable,
+ * machine-readable identifier (for example {@code booking_not_found}) that clients can switch
+ * on; the message is a human-readable detail and may change.
  */
 public class ApiException extends RuntimeException {
 
